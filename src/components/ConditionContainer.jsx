@@ -5,15 +5,36 @@ export default function ConditionContainer({ classname, title, identifier, condi
     const [currentCondition, setCurrentCondition] = useState(conditions[0] || null);
 
     useEffect(() => {
+        console.log("AGGIORNO")
         if (currentCondition == null && conditions.length > 0){
             setCurrentCondition(conditions[0]);
         } else if (currentCondition != null && conditions.length == 0) {
             setCurrentCondition(null);
+        } else if (currentCondition != null && !conditions.map(c => c._id).includes(currentCondition._id)) {
+            if (conditions.length > 0) {
+                setCurrentCondition(conditions[0]);
+            } else {
+                setCurrentCondition(null);
+            }
         }
     }, [conditions]);
 
-    const changeCurrentCondition = (newIdx) => {
-        setCurrentCondition(conditions[newIdx]);
+    const changeCurrentCondition = (id) => {
+        setCurrentCondition(conditions.find(c => c._id == id));
+    }
+
+    const changeCurrentConditionOnDelete = (id) => {
+        if (currentCondition._id == id) {
+            if (conditions.length > 1) {
+                if (conditions[0]._id !== id) {
+                    setCurrentCondition(conditions[0]);
+                } else {
+                    setCurrentCondition(conditions[1]);
+                }
+            } else {
+                setCurrentCondition(null);
+            }
+        }
     }
 
     return (
@@ -29,8 +50,8 @@ export default function ConditionContainer({ classname, title, identifier, condi
                         } } ) }
                         selected={ currentCondition != null ? currentCondition._id : null }
                         onClickCallback={ changeCurrentCondition }
-                        deleteButtonCallback={ (idx) => {
-                            deleteCondition(conditions[idx]._id) } }
+                        deleteButtonCallback={ (id) => {
+                            deleteCondition(id) } }
                         style={ { "height": "150px", "overflow": "scroll" } }
                     />
                 </div>
