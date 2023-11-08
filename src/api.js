@@ -1,7 +1,7 @@
 const BASE_URL = "http://localhost:3000"; //"https://tratto-jdc-api.onrender.com";
 
 const api = {
-    exportDBUrl: () => `${BASE_URL}/repositories/1/export`,
+    exportDBUrl: () => `${BASE_URL}/export`,
     getAllrepositoriesUrl: () => `${BASE_URL}/repositories`,
     getWholeRepositoryUrl: (idRepository) => `${BASE_URL}/repositories/${idRepository}/whole`,
     getAllreporitoryClassesUrl: (idRepository) => `${BASE_URL}/repositories/${idRepository}/repositoryClasses`,

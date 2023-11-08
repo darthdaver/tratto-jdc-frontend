@@ -5,7 +5,6 @@ export default function ConditionContainer({ classname, title, identifier, condi
     const [currentCondition, setCurrentCondition] = useState(conditions[0] || null);
 
     useEffect(() => {
-        console.log("AGGIORNO")
         if (currentCondition == null && conditions.length > 0){
             setCurrentCondition(conditions[0]);
         } else if (currentCondition != null && conditions.length == 0) {

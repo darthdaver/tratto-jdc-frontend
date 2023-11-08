@@ -57,8 +57,6 @@ export default function Main({ repository, repositoryClass, jdc, updateCurrentJD
         const idRepositoryClass = repositoryClass._id;
         const idJDoctorCondition = jdc._id;
 
-        console.log(api.deleteConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition, idCondition, conditionType));
-
         axios
             .delete(api.deleteConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition, idCondition, conditionType))
             .then((response) => {
@@ -101,10 +99,6 @@ export default function Main({ repository, repositoryClass, jdc, updateCurrentJD
         if (conditionType == "throws") {
             condition["exception"] = modalObj.exception;
         }
-
-        console.log({ condition: condition });
-
-        console.log(api.createConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition, conditionType));
 
         axios
             .post(api.createConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition, conditionType), { condition: condition } )

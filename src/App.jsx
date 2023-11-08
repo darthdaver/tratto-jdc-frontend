@@ -20,8 +20,6 @@ function App() {
             return this.repositories[idRepository];
         },
         getRepositoryClass: async function (idRepository, idRepositoryClass) {
-            console.log(this);
-            console.log(this.repositories[idRepository]);
             const repositoryClasses = this.repositories[idRepository].repositoryClasses ;
             if (idRepositoryClass in repositoryClasses) {
                 return this.repositories[idRepository].repositoryClasses[idRepositoryClass];
@@ -48,10 +46,7 @@ function App() {
                 return jDoctorConditions[idJDoctorCondition];
             } else {
                 try {
-                    console.log(idRepository, idRepositoryClass, idJDoctorCondition);
                     const response = await axios.get(api.getJDoctorConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition));
-                    console.log("cache di merda");
-                    console.log(response.data);
                     return response.data;
                 } catch(error) {
                     console.log(error);
@@ -100,21 +95,13 @@ function App() {
     }, []);
 
     useEffect( () => {
-        console.log("useEffect [currentRepository]");
-        console.log(currentRepository);
-        console.log(cache);
-        console.log(currentRepository ? currentRepository.repository.classes : "null");
-        console.log(currentRepository ? currentRepository.repository.classes.length > 0: "null");
         if (currentRepository !== null && currentRepository.repository.classes.length > 0) {
-            console.log("ENTROOOOO");
             const idRepository = currentRepository.repository._id;
             const idRepositoryClass = currentRepository.repository.classes[0]._id;
 
             cache
                 .getRepositoryClass(idRepository, idRepositoryClass)
                 .then((repositoryClass) => {
-                    console.log("fdp")
-                    console.log(repositoryClass)
                     setCache((prevState) => {
                         return {
                             ...prevState,
@@ -140,45 +127,15 @@ function App() {
     }, [currentRepository]);
 
     useEffect(() => {
-        console.log("useEffect [currentRepositoryClass]");
-        console.log(currentRepositoryClass);
-        console.log(currentRepositoryClass !== null);
-        console.log(currentRepositoryClass !== null ? currentRepositoryClass.repositoryClass.jDoctorConditions : "null")
-        console.log(currentRepositoryClass !== null ? currentRepositoryClass.repositoryClass.jDoctorConditions.length : "null")
-        console.log(currentRepositoryClass !== null ? currentRepositoryClass.repositoryClass.jDoctorConditions.length > 0 : "null")
         if (currentRepositoryClass !== null && currentRepositoryClass.repositoryClass.jDoctorConditions.length > 0) {
-            console.log("ENTROOOOO")
             const idRepository = currentRepository.repository._id;
             const idRepositoryClass = currentRepositoryClass.repositoryClass._id;
             const idJDoctorCondition = currentRepositoryClass.repositoryClass.jDoctorConditions[0]._id;
-            console.log(idJDoctorCondition);
             cache
                 .getJDoctorCondition(idRepository, idRepositoryClass, idJDoctorCondition)
                 .then((jDoctorCondition) => {
-                    console.log("JDOCTOR CONDITION")
-                    console.log(jDoctorCondition)
                     setCurrentJDoctorCondition(jDoctorCondition);
                     setCache((prevState) => {
-                        console.log({
-                            ...prevState,
-                            repositories: {
-                                ...prevState.repositories,
-                                [idRepository]: {
-                                    ...prevState.repositories[idRepository],
-                                    repositoryClasses: {
-                                        ...prevState.repositories[idRepository].repositoryClasses,
-                                        [idRepositoryClass]: {
-                                            repositoryClass: currentRepositoryClass.repositoryClass,
-                                            jDoctorConditions: {
-                                                ...currentRepositoryClass.jDoctorConditions,
-                                                [idJDoctorCondition]: jDoctorCondition
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        });
-
                         return {
                             ...prevState,
                             repositories: {
@@ -207,12 +164,6 @@ function App() {
         }
     }, [currentRepositoryClass]);
 
-    console.log("RENDER");
-    console.log(cache);
-    console.log(currentRepository);
-    console.log(currentRepositoryClass);
-    console.log(currentJDoctorCondition);
-
     const changeCurrentRepository = (idRepository) => {
         cache
             .getRepository(idRepository)
@@ -228,7 +179,6 @@ function App() {
         cache
             .getRepositoryClass(idRepository, idRepositoryClass)
             .then((repositoryClass) => {
-                console.log(repositoryClass);
                 setCurrentJDoctorCondition(null);
                 setCurrentRepositoryClass(repositoryClass);
             });
@@ -269,7 +219,6 @@ function App() {
     }
 
     const uploadJDoctorConditions = async (modalObj) => {
-        console.log(modalObj);
         const processFiles = (returnState) => {
             const selectedFiles = returnState.files;
             const readFile = (file) => {
@@ -352,13 +301,11 @@ function App() {
                 const filteredRepositoryClasses = cachedRepositoryClasses.filter(c => c.name == repositoryClass.name);
                 if (filteredRepositoryClasses.length == 0) {
                     try {
-                        console.log("FACCIO UNA POST!")
                         const response = await axios.post(api.createRepositoryClassUrl(repository._id), {"repositoryClass": repositoryClass})
                         repository.classes.push({
                             _id: response.data._id,
                             name: response.data.name
                         });
-                        console.log(response.data)
                         uploadedRepositoryClasses[response.data._id] = {
                             repositoryClass: response.data,
                             jDoctorConditions: {}
@@ -371,18 +318,7 @@ function App() {
                     console.log("Repository class already exists. Not uploaded.");
                 }
             }
-            console.log("FACCIO QUELLO CHE VOGLIO");
-            console.log(uploadedRepositoryClasses);
             setCache((prevState) => {
-                console.log("END");
-                console.log({...prevState,
-                    repositories: { ...prevState.repositories,
-                        [idRepository]: {
-                            repository: repository,
-                            repositoryClasses: {
-                                ...prevState.repositories[idRepository].repositoryClasses,
-                                ...uploadedRepositoryClasses
-                            }}}});
                 return {...prevState,
                     repositories: { ...prevState.repositories,
                         [idRepository]: {
@@ -423,8 +359,6 @@ function App() {
         axios
             .delete(api.deleteRepositoryUrl(idRepository))
             .then((response) => {
-                console.log("DELETE REPOSITORY");
-                console.log(response);
                 setCache((prevState) => {
                     const newState = { ...prevState };
                     delete newState.repositories[idRepository];
@@ -451,11 +385,7 @@ function App() {
         axios
             .delete(api.deleteRepositoryClassUrl(idRepository, idRepositoryClass))
             .then((response) => {
-                console.log(cache);
-                console.log(currentRepository);
                 const newRepositoryClassesState = currentRepository.repositoryClasses;
-                console.log("DELETE REPOSITORY CLASS");
-                console.log(newRepositoryClassesState);
                 delete newRepositoryClassesState[idRepositoryClass];
                 const updatedRepository = {
                     repository: {
@@ -526,12 +456,9 @@ function App() {
     };
 
     const exportDB = async () => {
-        console.log("exportDB");
-        console.log(api.exportDBUrl())
         axios
-            .get(api.exportDBUrl() )
+            .get(api.exportDBUrl(), { responseType: 'blob' })
             .then((response) => {
-                console.log(response);
                 saveAs(response.data, 'db.zip');
             }).catch((error) => {
                 console.log(error);
@@ -546,20 +473,20 @@ function App() {
                     <List
                         label="Repositories"
                         identifier="repository"
-                        selected={ (() => { console.log(currentRepository); return currentRepository ? currentRepository.repository._id : null })() }
-                        elements={ (() => { console.log(currentRepository); return Object.values(cache.repositories).map(r => {
+                        selected={ currentRepository ? currentRepository.repository._id : null }
+                        elements={ Object.values(cache.repositories).map(r => {
                             return {
                                 _id: r.repository._id,
                                 name: r.repository.projectName
                             }}
-                        )})() }
+                        ) }
                         onClickCallback={changeCurrentRepository}
                         deleteButtonCallback={deleteRepository}
                     />
                     <List
                         label="Classes"
                         identifier="repository-classes"
-                        selected={ (() => { console.log(currentRepositoryClass); return currentRepositoryClass ? currentRepositoryClass.repositoryClass._id : null })()}
+                        selected={ currentRepositoryClass ? currentRepositoryClass.repositoryClass._id : null }
                         elements={ currentRepository !== null && currentRepository.repository.classes.map(c => {
                             const _id = c._id;
                             let name = c.name;

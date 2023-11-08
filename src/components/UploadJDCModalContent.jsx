@@ -154,10 +154,6 @@ export default function UploadJDCModalContent({ repositories, modalUpdateState }
                                 repository: repositories[idx],
                                 files: files
                             });
-                            console.log({
-                                repository: repositories[idx],
-                                files: files
-                            })
                         }}
                     >
                         {
