@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:3000"; //"https://tratto-jdc-api.onrender.com";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 const api = {
     exportDBUrl: () => `${BASE_URL}/export`,
