@@ -14,118 +14,264 @@ import { saveAs } from 'file-saver';
 export const AppContext = React.createContext();
 
 function App() {
-    const [repositories, setRepositories] = useState([]);
-    const [repositoryClasses, setRepositoryClasses] = useState([]);
-    const [jDoctorConditions, setJDoctorConditions] = useState([]);
-    const [currentRepository, setCurrentRepository] = useState(repositories.length > 0 ? repositories[0] : null);
-    const [currentRepositoryClass, setCurrentRepositoryClass] = useState(repositoryClasses.length > 0 ? repositoryClasses[0] : null);
-    const [currentJDoctorCondition, setCurrentJDoctorCondition] = useState(jDoctorConditions.length > 0 ? jDoctorConditions[0] : null);
+    const [cache, setCache] = useState({
+        repositories: {},
+        getRepository: async function (idRepository) {
+            return this.repositories[idRepository];
+        },
+        getRepositoryClass: async function (idRepository, idRepositoryClass) {
+            console.log(this);
+            console.log(this.repositories[idRepository]);
+            const repositoryClasses = this.repositories[idRepository].repositoryClasses ;
+            if (idRepositoryClass in repositoryClasses) {
+                return this.repositories[idRepository].repositoryClasses[idRepositoryClass];
+            } else {
+                try {
+                    const response = await axios.get(api.getRepositoryClassUrl(idRepository, idRepositoryClass))
+                    return {
+                        repositoryClass: response.data,
+                        jDoctorConditions: {}
+                    };
+                } catch(error) {
+                    console.log(error);
+                    return {
+                        repositoryClass: null,
+                        jDoctorConditions: {}
+                    };
+                }
+            }
+        },
+        getJDoctorCondition: async function (idRepository, idRepositoryClass, idJDoctorCondition)  {
+            const repositoryClass = await this.getRepositoryClass(idRepository, idRepositoryClass);
+            const jDoctorConditions = repositoryClass.jDoctorConditions;
+            if (idJDoctorCondition in jDoctorConditions) {
+                return jDoctorConditions[idJDoctorCondition];
+            } else {
+                try {
+                    console.log(idRepository, idRepositoryClass, idJDoctorCondition);
+                    const response = await axios.get(api.getJDoctorConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition));
+                    console.log("cache di merda");
+                    console.log(response.data);
+                    return response.data;
+                } catch(error) {
+                    console.log(error);
+                    return null;
+                }
+            }
+        }
+    });
+    const [currentRepository, setCurrentRepository] = useState(null);
+    const [currentRepositoryClass, setCurrentRepositoryClass] = useState(null);
+    const [currentJDoctorCondition, setCurrentJDoctorCondition] = useState( null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    useEffect( () => {
+    useEffect(  () => {
         console.log("useEffect []");
-         axios
+          axios
             .get(api.getAllrepositoriesUrl())
-            .then((response) => {
-                setRepositories(response.data);
+            .then(async (response) => {
                 if (response.data.length > 0) {
-                    setCurrentRepository(response.data[0]);
+                    const repository = response.data[0];
+                    setCurrentRepository({
+                        repository: repository,
+                        repositoryClasses: {}
+                    });
+                    const repositoriesCacheDict = response.data.reduce((acc, r) => {
+                        return { ...acc,
+                            [`${r._id}`]: {
+                                repository: r,
+                                repositoryClasses: {},
+                        }}
+                    }, {});
+                    setCache((prevState) => {
+                        return {
+                            ...prevState,
+                            repositories: repositoriesCacheDict
+                        }
+                    });
                 } else {
                     setCurrentRepository(null);
                 }
             })
             .catch((error) => {
                 console.log(error);
-                setRepositories([]);
                 setCurrentRepository(null);
             })
     }, []);
 
-    useEffect(() => {
+    useEffect( () => {
         console.log("useEffect [currentRepository]");
-        if (currentRepository !== null) {
-            const idRepository = currentRepository._id;
-            axios
-                .get(api.getAllreporitoryClassesUrl(idRepository))
-                .then((response) => {
-                    setRepositoryClasses(response.data);
-                    if (response.data.length > 0) {
-                        setCurrentRepositoryClass(response.data[0]);
-                    }
-                })
-                .catch((error) => {
-                    console.log(error);
-                    setRepositoryClasses([]);
-                    setCurrentRepository(null);
-                })
+        console.log(currentRepository);
+        console.log(cache);
+        console.log(currentRepository ? currentRepository.repository.classes : "null");
+        console.log(currentRepository ? currentRepository.repository.classes.length > 0: "null");
+        if (currentRepository !== null && currentRepository.repository.classes.length > 0) {
+            console.log("ENTROOOOO");
+            const idRepository = currentRepository.repository._id;
+            const idRepositoryClass = currentRepository.repository.classes[0]._id;
+
+            cache
+                .getRepositoryClass(idRepository, idRepositoryClass)
+                .then((repositoryClass) => {
+                    console.log("fdp")
+                    console.log(repositoryClass)
+                    setCache((prevState) => {
+                        return {
+                            ...prevState,
+                            repositories: {
+                                ...prevState.repositories,
+                                [idRepository]: {
+                                    ...prevState.repositories[idRepository],
+                                    repositoryClasses: {
+                                        ...prevState.repositories[idRepository].repositoryClasses,
+                                        [idRepositoryClass]: repositoryClass
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    setCurrentRepositoryClass(repositoryClass);
+                }).catch((error) => {
+                        console.log(error);
+                });
         } else {
             setCurrentRepositoryClass(null);
-            setRepositoryClasses([]);
         }
-
     }, [currentRepository]);
 
     useEffect(() => {
         console.log("useEffect [currentRepositoryClass]");
-        if (currentRepository !== null && currentRepositoryClass !== null) {
-            const idCurrentRepository = currentRepository._id;
-            const idRepositoryClass = currentRepositoryClass._id;
-            axios
-                .get(api.getAllJDoctorConditionsUrl(idCurrentRepository, idRepositoryClass))
-                .then((response) => {
-                    setJDoctorConditions(response.data);
-                    if (response.data.length > 0 ) {
-                        setCurrentJDoctorCondition(response.data[0]);
-                    }
-                })
-                .catch((error) => {
-                    console.log(error);
-                    setJDoctorConditions([]);
-                    setCurrentJDoctorCondition(null);
-                })
+        console.log(currentRepositoryClass);
+        console.log(currentRepositoryClass !== null);
+        console.log(currentRepositoryClass !== null ? currentRepositoryClass.repositoryClass.jDoctorConditions : "null")
+        console.log(currentRepositoryClass !== null ? currentRepositoryClass.repositoryClass.jDoctorConditions.length : "null")
+        console.log(currentRepositoryClass !== null ? currentRepositoryClass.repositoryClass.jDoctorConditions.length > 0 : "null")
+        if (currentRepositoryClass !== null && currentRepositoryClass.repositoryClass.jDoctorConditions.length > 0) {
+            console.log("ENTROOOOO")
+            const idRepository = currentRepository.repository._id;
+            const idRepositoryClass = currentRepositoryClass.repositoryClass._id;
+            const idJDoctorCondition = currentRepositoryClass.repositoryClass.jDoctorConditions[0]._id;
+            console.log(idJDoctorCondition);
+            cache
+                .getJDoctorCondition(idRepository, idRepositoryClass, idJDoctorCondition)
+                .then((jDoctorCondition) => {
+                    console.log("JDOCTOR CONDITION")
+                    console.log(jDoctorCondition)
+                    setCurrentJDoctorCondition(jDoctorCondition);
+                    setCache((prevState) => {
+                        console.log({
+                            ...prevState,
+                            repositories: {
+                                ...prevState.repositories,
+                                [idRepository]: {
+                                    ...prevState.repositories[idRepository],
+                                    repositoryClasses: {
+                                        ...prevState.repositories[idRepository].repositoryClasses,
+                                        [idRepositoryClass]: {
+                                            repositoryClass: currentRepositoryClass.repositoryClass,
+                                            jDoctorConditions: {
+                                                ...currentRepositoryClass.jDoctorConditions,
+                                                [idJDoctorCondition]: jDoctorCondition
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        return {
+                            ...prevState,
+                            repositories: {
+                                ...prevState.repositories,
+                                [idRepository]: {
+                                    ...prevState.repositories[idRepository],
+                                    repositoryClasses: {
+                                        ...prevState.repositories[idRepository].repositoryClasses,
+                                        [idRepositoryClass]: {
+                                            repositoryClass: currentRepositoryClass.repositoryClass,
+                                            jDoctorConditions: {
+                                                ...currentRepositoryClass.jDoctorConditions,
+                                                [idJDoctorCondition]: jDoctorCondition
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }).catch((error) => {
+                        console.log(error);
+                });
         } else {
             setCurrentJDoctorCondition(null);
         }
-
     }, [currentRepositoryClass]);
 
-    const changeCurrentRepository = (newIdx) => {
-        setCurrentRepository(repositories[newIdx]);
+    console.log("RENDER");
+    console.log(cache);
+    console.log(currentRepository);
+    console.log(currentRepositoryClass);
+    console.log(currentJDoctorCondition);
+
+    const changeCurrentRepository = (idRepository) => {
+        cache
+            .getRepository(idRepository)
+            .then((repository) => {
+                setCurrentJDoctorCondition(null);
+                setCurrentRepositoryClass(null);
+                setCurrentRepository(repository);
+            })
     }
 
-    const changeCurrentRepositoryClass = (newIdx) => {
-        setCurrentRepositoryClass(repositoryClasses[newIdx]);
+    const changeCurrentRepositoryClass = (idRepositoryClass) => {
+        const idRepository = currentRepository.repository._id;
+        cache
+            .getRepositoryClass(idRepository, idRepositoryClass)
+            .then((repositoryClass) => {
+                console.log(repositoryClass);
+                setCurrentJDoctorCondition(null);
+                setCurrentRepositoryClass(repositoryClass);
+            });
     }
 
-    const changeCurrentJDoctorCondition = (newIdx) => {
-        setCurrentJDoctorCondition(jDoctorConditions[newIdx]);
+    const changeCurrentJDoctorCondition = (idJDoctorCondition) => {
+        const idRepository = currentRepository.repository._id;
+        const idRepositoryClass = currentRepositoryClass.repositoryClass._id;
+        cache
+            .getJDoctorCondition(idRepository, idRepositoryClass, idJDoctorCondition)
+            .then((jDoctorCondition) => {
+                setCurrentJDoctorCondition(jDoctorCondition);
+            })
     }
 
     const updateCurrentJDoctorCondition = (condition, conditionType, operation) => {
-        if (operation == "add") {
-            setCurrentJDoctorCondition((prevState) => {
-                return {
-                    ...prevState,
-                    conditionType: [...prevState[conditionType], condition]
-                }
-            })
-        }
-        if (operation == "delete") {
-            setCurrentJDoctorCondition((prevState) => {
-                return {
-                    ...prevState,
-                    conditionType: prevState[conditionType].filter(id => id != condition._id)
-                }
-            })
-        }
+        const idRepository = currentRepository.repository._id;
+        const idRepositoryClass = currentRepositoryClass.repositoryClass._id;
+        const idJDoctorCondition = currentJDoctorCondition._id;
+        let updatedJDoctorCondition = {
+            ...currentJDoctorCondition,
+            [conditionType]: operation == "add" ?
+                [...currentJDoctorCondition[conditionType], condition]
+                :
+                currentJDoctorCondition[conditionType].filter(id => id != condition._id)
+        };
+        setCurrentJDoctorCondition(updatedJDoctorCondition);
+        setCache((prevState) => {
+            return { ...prevState,
+                repositories: { ...prevState.repositories,
+                    [idRepository]: { ...prevState.repositories[idRepository],
+                        repositoryClasses: { ...prevState.repositories[idRepository].repositoryClasses,
+                            [idRepositoryClass]: {
+                                repositoryClass: prevState.repositories[idRepository].repositoryClasses[idRepositoryClass].repositoryClasses,
+                                jDoctorConditions: { ...prevState.repositories[idRepository].repositoryClasses[idRepositoryClass].jDoctorConditions,
+                                    [idJDoctorCondition]: updatedJDoctorCondition
+        }}}}}}});
     }
 
     const uploadJDoctorConditions = async (modalObj) => {
         console.log(modalObj);
         const processFiles = (returnState) => {
             const selectedFiles = returnState.files;
-            const repositoryClasses = [];
-
             const readFile = (file) => {
                 return new Promise((resolve, reject) => {
                     if (file.type === 'application/json' || file.name.endsWith('.json')) {
@@ -153,13 +299,13 @@ function App() {
             };
 
             return readAllFiles()
-                .then((results) => {
-                    results.forEach((repositoryClass) => {
+                .then((result) => {
+                    const repositoryClasses = [];
+                    result.forEach((repositoryClass) => {
                         if (repositoryClass !== null) {
                             repositoryClasses.push(repositoryClass);
                         }
                     });
-
                     return {
                         repository: returnState.repository,
                         repositoryClasses: repositoryClasses,
@@ -167,76 +313,132 @@ function App() {
                 })
                 .catch((error) => {
                     console.error(error);
-                    return {
-                        repository: returnState.repository,
-                        repositoryClasses: repositoryClasses,
-                    };
                 });
         };
 
         const uploadToDatabase = async (processedObj) => {
             const repository = processedObj.repository;
-            const uploadRepositoryClasses = processedObj.repositoryClasses;
+            const repositoryClasses = processedObj.repositoryClasses;
             let idRepository = repository._id;
-            const filteredUploadedRepositoryClasses = [];
+            const uploadedRepositoryClasses = {};
+            let cachedRepositoryClasses = [];
 
             if (idRepository == null) {
-                await axios
-                    .post(api.createRepositoryUrl(), { "repository": repository })
-                    .then((response) => {
-                        console.log(1)
-                        idRepository = response.data._id;
-                        repository._id = response.data._id;
-                        setRepositories([...repositories, response.data]);
-                    })
-                    .catch((error) => {
-                        console.log(error);
-                    })
+                try {
+                    const response = await axios.post(api.createRepositoryUrl(), { "repository": { ...repository, classes: [] } })
+                    idRepository = response.data._id;
+                    repository._id = response.data._id;
+                    repository.classes = [];
+                    setCache((prevState) => {
+                        return { ...prevState,
+                            repositories: { ...prevState.repositories,
+                                [idRepository]: {
+                                    repository: response.data,
+                                    repositoryClasses: {}
+                    }}}});
+                    cachedRepositoryClasses = [];
+                } catch (error) {
+                    console.log(error);
+                    return {
+                        repository: null,
+                        repositoryClasses: []
+                    }
+                }
+            } else {
+                cachedRepositoryClasses = Object.values(repository.classes);
             }
-            for(let repositoryClass of uploadRepositoryClasses) {
-                const filteredRepositoryClasses = repositoryClasses.filter(r => r.name == repositoryClass.name);
+
+            for(let repositoryClass of repositoryClasses) {
+                const filteredRepositoryClasses = cachedRepositoryClasses.filter(c => c.name == repositoryClass.name);
                 if (filteredRepositoryClasses.length == 0) {
-                    await axios
-                        .post(api.createRepositoryClassUrl(repository._id), { "repositoryClass": repositoryClass })
-                        .then((response) => {
-                            filteredUploadedRepositoryClasses.push(response.data);
-                        })
-                        .catch((error) => {
-                            console.log(error);
+                    try {
+                        console.log("FACCIO UNA POST!")
+                        const response = await axios.post(api.createRepositoryClassUrl(repository._id), {"repositoryClass": repositoryClass})
+                        repository.classes.push({
+                            _id: response.data._id,
+                            name: response.data.name
                         });
+                        console.log(response.data)
+                        uploadedRepositoryClasses[response.data._id] = {
+                            repositoryClass: response.data,
+                            jDoctorConditions: {}
+                        };
+                    } catch (error) {
+                        console.log(error);
+                    }
 
                 } else {
                     console.log("Repository class already exists. Not uploaded.");
                 }
-                setRepositoryClasses([...repositoryClasses, ...filteredUploadedRepositoryClasses]);
             }
+            console.log("FACCIO QUELLO CHE VOGLIO");
+            console.log(uploadedRepositoryClasses);
+            setCache((prevState) => {
+                console.log("END");
+                console.log({...prevState,
+                    repositories: { ...prevState.repositories,
+                        [idRepository]: {
+                            repository: repository,
+                            repositoryClasses: {
+                                ...prevState.repositories[idRepository].repositoryClasses,
+                                ...uploadedRepositoryClasses
+                            }}}});
+                return {...prevState,
+                    repositories: { ...prevState.repositories,
+                        [idRepository]: {
+                            repository: repository,
+                            repositoryClasses: {
+                                ...prevState.repositories[idRepository].repositoryClasses,
+                                ...uploadedRepositoryClasses
+            }}}}});
 
             if (currentRepository == null) {
-                setCurrentRepository(repository);
+                setCurrentRepository({
+                    repository,
+                    repositoryClasses: uploadedRepositoryClasses
+                });
+            } else if (currentRepository.repository._id == idRepository) {
+                setCurrentRepository({
+                    repository,
+                    repositoryClasses: {
+                        ...currentRepository.repositoryClasses,
+                        ...uploadedRepositoryClasses
+                    }
+                });
             }
         };
 
         processFiles(modalObj)
             .then((processedObj) => {
-                uploadToDatabase(processedObj);
+                if (processedObj.repository !== null){
+                    uploadToDatabase(processedObj);
+                }
             })
             .catch((error) => {
                 console.log(error);
             });
     }
 
-    const deleteRepository = async (idx) => {
-        const repository = repositories[idx];
-        const idRepository = repository._id;
+    const deleteRepository = async (idRepository) => {
         axios
             .delete(api.deleteRepositoryUrl(idRepository))
             .then((response) => {
-                const filteredRepositories = repositories.filter(r => r._id !== idRepository);
-                setRepositories(filteredRepositories);
-                if (filteredRepositories.length > 0 ) {
-                    setCurrentRepository(filteredRepositories[0]);
-                } else {
-                    setCurrentRepository(null);
+                console.log("DELETE REPOSITORY");
+                console.log(response);
+                setCache((prevState) => {
+                    const newState = { ...prevState };
+                    delete newState.repositories[idRepository];
+                    return newState;
+                });
+                if (currentRepository.repository._id == idRepository) {
+                    if (Object.keys(cache.repositories).length > 0) {
+                        setCurrentRepository(cache.repositories[Object.keys(cache.repositories)[0]]);
+                    }
+                    else {
+                        setCurrentRepository(null);
+                        setCurrentRepositoryClass(null);
+                        setCurrentJDoctorCondition(null);
+                    }
                 }
             })
             .catch((error) => {
@@ -244,40 +446,78 @@ function App() {
             })
     }
 
-    const deleteRepositoryClass = async (idx) => {
-        const idCurrentRepository = currentRepository._id;
-        const repositoryClass = repositoryClasses[idx];
-        const idRepositoryClass = repositoryClass._id;
+    const deleteRepositoryClass = async (idRepositoryClass) => {
+        const idRepository = currentRepository.repository._id;
         axios
-            .delete(api.deleteRepositoryClassUrl(idCurrentRepository, idRepositoryClass))
+            .delete(api.deleteRepositoryClassUrl(idRepository, idRepositoryClass))
             .then((response) => {
-                const filteredRepositoryClasses = repositoryClasses.filter(r => r._id !== idRepositoryClass);
-                setRepositoryClasses(filteredRepositoryClasses);
-                if (filteredRepositoryClasses.length > 0 ) {
-                    setCurrentRepositoryClass(filteredRepositoryClasses[0]);
-                } else {
-                    setCurrentRepositoryClass(null);
+                console.log(cache);
+                console.log(currentRepository);
+                const newRepositoryClassesState = currentRepository.repositoryClasses;
+                console.log("DELETE REPOSITORY CLASS");
+                console.log(newRepositoryClassesState);
+                delete newRepositoryClassesState[idRepositoryClass];
+                const updatedRepository = {
+                    repository: {
+                        ...currentRepository.repository,
+                        classes: currentRepository.repository.classes.filter(c => c._id !== idRepositoryClass)
+                    },
+                    repositoryClasses: newRepositoryClassesState
                 }
+                setCache((prevState) => {
+                    return {...prevState,
+                        repositories: { ...prevState.repositories,
+                            [idRepository]: updatedRepository
+                }}});
+                if (currentRepositoryClass.repositoryClass._id == idRepositoryClass) {
+                    if (Object.keys(newRepositoryClassesState).length > 0) {
+                        setCurrentRepositoryClass(Object.values(newRepositoryClassesState)[0]);
+                    } else {
+                        setCurrentRepositoryClass(null);
+                    }
+                }
+                setCurrentRepository(updatedRepository);
             })
             .catch((error) => {
                 console.log(error);
             })
     };
 
-    const deleteJDoctorCondition = async (idx) => {
-        const idRepository = currentRepository._id;
-        const idRepositoryClass = currentRepositoryClass._id;
-        const jDoctorCondition = jDoctorConditions[idx];
-        const idJDoctorCondition = jDoctorCondition._id;
+    const deleteJDoctorCondition = async (idJDoctorCondition) => {
+        const idRepository = currentRepository.repository._id;
+        const idRepositoryClass = currentRepositoryClass.repositoryClass._id;
         axios
             .delete(api.deleteJDoctorConditionUrl(idRepository, idRepositoryClass, idJDoctorCondition))
             .then((response) => {
-                const filteredJDoctorConditions = jDoctorConditions.filter(r => r._id !== idJDoctorCondition);
-                setJDoctorConditions(filteredJDoctorConditions);
-                if (filteredJDoctorConditions.length > 0 ) {
-                    setCurrentJDoctorCondition(filteredJDoctorConditions[0]);
+                const newJDoctorConditionsState = currentRepositoryClass.jDoctorConditions;
+                delete newJDoctorConditionsState[idJDoctorCondition];
+                const updatedRepositoryClass = {
+                    repositoryClass: {
+                        ...currentRepositoryClass.repositoryClass,
+                        jDoctorConditions: currentRepositoryClass.repositoryClass.jDoctorConditions.filter(j => j._id !== idJDoctorCondition)
+                    },
+                    jDoctorConditions: newJDoctorConditionsState
+                }
+                setCache((prevState) => {
+                    return {...prevState,
+                        repositories: { ...prevState.repositories,
+                            [idRepository]: { ...prevState.repositories[idRepository],
+                                repositoryClasses: { ...prevState.repositories[idRepository].repositoryClasses,
+                                    [idRepositoryClass]: updatedRepositoryClass
+                }}}}});
+
+                if (currentRepositoryClass.repositoryClass._id == idRepositoryClass) {
+                    setCurrentRepositoryClass(updatedRepositoryClass);
+                }
+
+                if (currentJDoctorCondition._id == idJDoctorCondition) {
+                    if (Object.keys(newJDoctorConditionsState).length > 0) {
+                        setCurrentJDoctorCondition(Object.values(newJDoctorConditionsState)[0]);
+                    } else {
+                        setCurrentJDoctorCondition(null);
+                    }
                 } else {
-                    setCurrentJDoctorCondition(null);
+                    setCurrentJDoctorCondition(currentJDoctorCondition);
                 }
             })
             .catch((error) => {
@@ -286,73 +526,17 @@ function App() {
     };
 
     const exportDB = async () => {
-        console.log(repositories);
-        const folderStructure = {
-            "inputProjects.json": JSON.stringify(repositories.map(r => { return {
-                projectName: r.projectName,
-                rootPathList: r.rootPathList,
-                srcPathList: ["raw", ...r.srcPathList],
-                jarPathList: ["jar"],
-                jDoctorConditionsPathList: ["conditions"]
-            } })),
-        };
-
-        const zip = new JSZip();
-
-        for (const repo of repositories) {
-            await axios
-                .get(api.getAllreporitoryClassesUrl(repo._id))
-                .then(async (response) => {
-                    const repoClasses = response.data;
-                    for (const repoClass of repoClasses) {
-                        repoClass.jDoctorConditions = [];
-                        await axios
-                            .get(api.getAllJDoctorConditionsUrl(repo._id, repoClass._id))
-                            .then(async (response) => {
-                                const jdcs = response.data;
-                                for(const jdc of jdcs) {
-                                    await axios
-                                        .get(api.getAllConditionsUrl(repo._id, repoClass._id, jdc._id, "pre"))
-                                        .then(async (response) => {
-                                            const preConditions = response.data;
-                                            await axios
-                                                .get(api.getAllConditionsUrl(repo._id, repoClass._id, jdc._id, "post"))
-                                                .then(async (response) => {
-                                                    const postConditions = response.data;
-                                                    await axios
-                                                        .get(api.getAllConditionsUrl(repo._id, repoClass._id, jdc._id, "throws"))
-                                                        .then((response) => {
-                                                            jdc.preConditions = preConditions;
-                                                            jdc.postConditions = postConditions;
-                                                            jdc.throwsConditions = response.data;
-                                                            repoClass.jDoctorConditions.push(jdc);
-                                                            folderStructure[`repositories/${repo.projectName}/${repoClass.name}.json`] = JSON.stringify(repoClass);
-                                                        })
-                                                })
-                                                .catch((error) => {
-                                                    console.log(error);
-                                                })
-                                        })
-                                }
-
-                            })
-                            .catch((error) => {
-                                console.log(error);
-                            })
-                    }
-
-                })
-                .catch((error) => {
-                    console.log(error);
-                })
-        }
-        for (const filePath in folderStructure) {
-            zip.file(filePath, folderStructure[filePath]);
-        }
-        zip.generateAsync({type:"blob"}).then(function(content) {
-            saveAs(content, "jdoctorconditions.zip");
-        });
-    }
+        console.log("exportDB");
+        console.log(api.exportDBUrl())
+        axios
+            .get(api.exportDBUrl() )
+            .then((response) => {
+                console.log(response);
+                saveAs(response.data, 'db.zip');
+            }).catch((error) => {
+                console.log(error);
+            });
+    };
 
     return (
         <>
@@ -362,50 +546,44 @@ function App() {
                     <List
                         label="Repositories"
                         identifier="repository"
-                        selected={currentRepository ? currentRepository._id : null}
-                        elements={ repositories.map(r => { return {
-                            _id: r._id,
-                            name: r.projectName
-                        }}) }
+                        selected={ (() => { console.log(currentRepository); return currentRepository ? currentRepository.repository._id : null })() }
+                        elements={ (() => { console.log(currentRepository); return Object.values(cache.repositories).map(r => {
+                            return {
+                                _id: r.repository._id,
+                                name: r.repository.projectName
+                            }}
+                        )})() }
                         onClickCallback={changeCurrentRepository}
                         deleteButtonCallback={deleteRepository}
                     />
                     <List
                         label="Classes"
                         identifier="repository-classes"
-                        selected={currentRepositoryClass ? currentRepositoryClass._id : null}
-                        elements={ repositoryClasses.map(r => {
-                            let name = r.name;
-                            let namePackagePrefix = name.substring(0, name.lastIndexOf("."));
+                        selected={ (() => { console.log(currentRepositoryClass); return currentRepositoryClass ? currentRepositoryClass.repositoryClass._id : null })()}
+                        elements={ currentRepository !== null && currentRepository.repository.classes.map(c => {
+                            const _id = c._id;
+                            let name = c.name;
                             name = name.substring(name.lastIndexOf(".") + 1);
                             return {
-                                _id: r._id,
-                                name: name,
-                                namePackagePrefix: namePackagePrefix
+                                _id: _id,
+                                name: name
                             }
-                        }) }
+                        })}
                         onClickCallback={changeCurrentRepositoryClass}
                         deleteButtonCallback={deleteRepositoryClass}
                     />
                     <List
                         label="JDoctor Conditions"
                         identifier="jdc"
-                        selected={currentJDoctorCondition ? currentJDoctorCondition._id : null}
-                        elements={ currentRepositoryClass !== null ?
-                            jDoctorConditions.map(j => {
-                                let name = j.operation.name;
-                                if (name == currentRepositoryClass.name) {
-                                    name = name.substring(name.lastIndexOf(".") + 1)
-                                }
-                                name += `(${j.identifiers.parameters.join(", ")})`;
-                                return {
-                                    _id: j._id,
-                                    name: name
-                                }
-                            })
-                        :
-                            []
-                        }
+                        selected={ currentJDoctorCondition ? currentJDoctorCondition._id : null }
+                        elements={ currentRepositoryClass && Object.values(currentRepositoryClass.repositoryClass.jDoctorConditions).map(j => {
+                            const _id = j._id;
+                            let name = j.name;
+                            return {
+                                _id: _id,
+                                name: name
+                            }
+                        }) || []}
                         onClickCallback={ changeCurrentJDoctorCondition }
                         deleteButtonCallback={ deleteJDoctorCondition }
                     />
@@ -441,8 +619,7 @@ function App() {
                 confirmButtonLabel={"Upload"}
             >
                 <UploadJDCModalContent
-                    repositories={repositories}
-                    repositoryClasses={repositoryClasses}
+                    repositories={Object.values(cache.repositories).map(r => r.repository)}
                 />
             </Modal>
         </>
