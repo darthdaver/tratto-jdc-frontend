@@ -87,6 +87,7 @@ html, body {
 
 #class-source-code, #method-source-code, #javadoc {
   margin-left: 2em;
+  max-width: 1000px;
 }
 
 #pre-container, #post-container, #throws-container {

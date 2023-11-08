@@ -59,40 +59,49 @@ function App() {
     const [currentRepositoryClass, setCurrentRepositoryClass] = useState(null);
     const [currentJDoctorCondition, setCurrentJDoctorCondition] = useState( null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isAuthOpen, setIsAuthOpen] = useState(import.meta.env.VITE_PERMIT == "student");
+    const [formAuth, setformAuth] = useState({
+        email: "",
+        password: ""
+    });
 
     useEffect(  () => {
         console.log("useEffect []");
-          axios
-            .get(api.getAllrepositoriesUrl())
-            .then(async (response) => {
-                if (response.data.length > 0) {
-                    const repository = response.data[0];
-                    setCurrentRepository({
-                        repository: repository,
-                        repositoryClasses: {}
-                    });
-                    const repositoriesCacheDict = response.data.reduce((acc, r) => {
-                        return { ...acc,
-                            [`${r._id}`]: {
-                                repository: r,
-                                repositoryClasses: {},
-                        }}
-                    }, {});
-                    setCache((prevState) => {
-                        return {
-                            ...prevState,
-                            repositories: repositoriesCacheDict
-                        }
-                    });
-                } else {
+        if (!isAuthOpen) {
+            axios
+                .get(api.getAllrepositoriesUrl())
+                .then(async (response) => {
+                    if (response.data.length > 0) {
+                        const repository = response.data[0];
+                        setCurrentRepository({
+                            repository: repository,
+                            repositoryClasses: {}
+                        });
+                        const repositoriesCacheDict = response.data.reduce((acc, r) => {
+                            return {
+                                ...acc,
+                                [`${r._id}`]: {
+                                    repository: r,
+                                    repositoryClasses: {},
+                                }
+                            }
+                        }, {});
+                        setCache((prevState) => {
+                            return {
+                                ...prevState,
+                                repositories: repositoriesCacheDict
+                            }
+                        });
+                    } else {
+                        setCurrentRepository(null);
+                    }
+                })
+                .catch((error) => {
+                    console.log(error);
                     setCurrentRepository(null);
-                }
-            })
-            .catch((error) => {
-                console.log(error);
-                setCurrentRepository(null);
-            })
-    }, []);
+                })
+        }
+    }, [], isAuthOpen);
 
     useEffect( () => {
         if (currentRepository !== null && currentRepository.repository.classes.length > 0) {
@@ -297,6 +306,8 @@ function App() {
                 cachedRepositoryClasses = Object.values(repository.classes);
             }
 
+            let idx = 0;
+
             for(let repositoryClass of repositoryClasses) {
                 const filteredRepositoryClasses = cachedRepositoryClasses.filter(c => c.name == repositoryClass.name);
                 if (filteredRepositoryClasses.length == 0) {
@@ -306,6 +317,9 @@ function App() {
                             _id: response.data._id,
                             name: response.data.name
                         });
+                        console.log("Repository class uploaded.");
+                        console.log(idx++);
+                        console.log(response.data);
                         uploadedRepositoryClasses[response.data._id] = {
                             repositoryClass: response.data,
                             jDoctorConditions: {}
@@ -313,7 +327,6 @@ function App() {
                     } catch (error) {
                         console.log(error);
                     }
-
                 } else {
                     console.log("Repository class already exists. Not uploaded.");
                 }
@@ -465,8 +478,71 @@ function App() {
             });
     };
 
+    const handleInputChange = (event) => {
+        const target = event.target;
+        const value = target.value;
+        const name = target.name;
+
+        setformAuth({
+          ...formAuth,
+          [name]: value
+        });
+    }
+
+    const submitAuth = (event) => {
+        event.preventDefault();
+        axios
+            .post(api.loginUrl(), {
+                email: formAuth.email,
+                password: formAuth.password
+            })
+            .then((response) => {
+                if (response.data)
+                setIsAuthOpen(false);
+            })
+            .catch((error) => {
+                console.log(error);
+            })
+    }
+
     return (
         <>
+            {
+                (import.meta.env.VITE_PERMIT == "student" && isAuthOpen) ?
+                <div id="student-login">
+                    <form className="form-container">
+                        <div className="add-condition-input-container">
+                            <label
+                                htmlFor="email"
+                                className="add-condition-label"
+                            >Email:</label>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                value={formAuth.email}
+                                onChange={handleInputChange}
+                                className="add-condition-input"
+                            />
+                        </div>
+                        <div className="add-condition-input-container">
+                            <label
+                                htmlFor="password"
+                                className="add-condition-label"
+                            >Password:</label>
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                value={formAuth.password}
+                                onChange={handleInputChange}
+                                className="add-condition-input"
+                            />
+                        </div>
+                    </form>
+                    <button className="submit-button" onClick={submitAuth}>Submit</button>
+                </div> : null
+            }
             <h1 id="main-title">Data Augmentation</h1>
             <div id="page">
                 <div id="menu">

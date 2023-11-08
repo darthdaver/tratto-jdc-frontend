@@ -2,6 +2,8 @@ import {TiDelete} from "react-icons/ti";
 import React, {useState} from "react";
 import {FiMinusSquare, FiPlusSquare} from "react-icons/fi";
 
+const PERMIT = import.meta.env.VITE_PERMIT;
+
 export default function List({ label, identifier, selected, elements, onClickCallback, deleteButtonCallback, style }) {
 
     const [expand, setExpand] = useState(true);
@@ -34,7 +36,10 @@ export default function List({ label, identifier, selected, elements, onClickCal
                                     return (
                                         <div key={ e._id } className="list-row">
                                             <span className="list-row-name" style={ selected && selected == e._id ? { color: "rgba(226, 119, 122, 1)" } : null } onClick={() => { onClickCallback(e._id) }}>{e.name}</span>
-                                            <button className="delete-button" onClick={() => { deleteButtonCallback(e._id) } }><TiDelete color="#e2777a" size={25} /></button>
+                                            {
+                                                PERMIT != "student" && !e.description &&
+                                                <button className="delete-button" onClick={() => { deleteButtonCallback(e._id) } }><TiDelete color="#e2777a" size={25} /></button>
+                                            }
                                         </div>
                                     );
                                 })
