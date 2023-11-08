@@ -27,7 +27,7 @@ export default function List({ label, identifier, selected, elements, onClickCal
             }
             {
                 expand ?
-                    <div className="list-item">
+                    <div className="list-item" style={ elements.length > 15 ? { boxShadow: "inset 0px -5px 10px -10px rgba(0, 0, 0, 0.5)" } : null }>
                         {
                             elements.length > 0 ?
                                 elements.map((e) => {
