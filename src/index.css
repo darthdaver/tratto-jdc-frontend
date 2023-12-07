@@ -287,6 +287,8 @@ html, body {
   border-left: 1px dashed rgba(0,0,0,0.3);
   max-height: 300px;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .main-not-found {
@@ -364,14 +366,14 @@ html, body {
 
 
 .add-condition-input-container {
-    display: grid;
-    grid-template-columns: [begin] 35% [middle] 65% [end];
-    margin-bottom: 1em;
+  display: grid;
+  grid-template-columns: [begin] 35% [middle] 65% [end];
+  margin-bottom: 1em;
 }
 
 .signin-input-container {
-    display: grid;
-    margin-bottom: 1em;
+  display: grid;
+  margin-bottom: 1em;
 }
 
 .condition-list {
@@ -408,6 +410,14 @@ html, body {
 
 .add-condition-jdc {
   grid-column-start: middle;
+}
+
+.search-input {
+  border-radius: 10px;
+  border: 1px solid;
+  padding: 0.5em 0.5em;
+  margin-bottom: 1em;
+  margin-top: 0.5em;
 }
 
 /* Style the scrollbar track */

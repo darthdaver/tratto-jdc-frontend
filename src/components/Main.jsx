@@ -134,12 +134,14 @@ export default function Main({ repository, repositoryClass, jdc, updateCurrentJD
                                 identifier="method-source-code"
                                 code={jdc.source.methodSourceCode}
                                 language="java"
+                                defaultExpand={true}
                             />
                             <Code
                                 label="Javadoc"
                                 identifier="javadoc"
                                 code={jdc.source.methodJavadoc}
                                 language="java"
+                                defaultExpand={true}
                             />
                         </div>
                         <div id="jdoctor-conditions">
