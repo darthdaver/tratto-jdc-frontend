@@ -127,9 +127,9 @@ export default function UploadJDCModalContent({ repositories, modalUpdateState }
                             defaultChecked={radioChoice == "existing"}
                             onClick={() => {
                                 fileInputRef.current.value="";
-                                setNewRepository(selectValue);
+                                setNewRepository(repositories[selectValue]);
                                 modalUpdateState({
-                                    repository: selectValue,
+                                    repository: repositories[selectValue],
                                     files: files
                                 })
                                 setRadioChoice("existing");

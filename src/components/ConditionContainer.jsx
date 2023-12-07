@@ -1,8 +1,9 @@
 import React, {useEffect, useState} from "react";
 import List from "./List.jsx";
 import {FiMinusSquare, FiPlusSquare} from "react-icons/fi";
+import AddConditionForm from "./AddConditionForm.jsx";
 
-export default function ConditionContainer({ classname, title, identifier, conditions, deleteCondition, onClickAdd }) {
+export default function ConditionContainer({ classname, title, identifier, conditions, deleteCondition, addCondition }) {
     const [currentCondition, setCurrentCondition] = useState(conditions[0] || null);
     const [expand, setExpand] = useState(true);
 
@@ -68,7 +69,7 @@ export default function ConditionContainer({ classname, title, identifier, condi
                                 onClickCallback={ changeCurrentCondition }
                                 deleteButtonCallback={ (id) => {
                                     deleteCondition(id) } }
-                                style={ { "height": "150px", "overflow": "auto" } }
+                                style={ { "height": "300px", "overflow": "auto" } }
                             />
                         </div>
                         <div className="current-condition-container">
@@ -108,10 +109,15 @@ export default function ConditionContainer({ classname, title, identifier, condi
                                     <span>{ `No ${identifier}-conditions defined` }</span>
                             }
                         </div>
-                        <button
-                            className="add-condition-button"
-                            onClick={ onClickAdd }
-                        >Add</button>
+                        <AddConditionForm
+                            identifier={ identifier }
+                            addCondition={ (formData) => { addCondition(formData) } }
+                            disableProperties={{
+                                condition: (value) => { return value == "" },
+                                exception: identifier == "throws" ? (value) => { return value == "" } : (value) => { return false; } ,
+                                oracle: identifier == "post" ? (value) => { return value == "" } : (value) => { return false; }
+                            }}
+                        />
                     </div>
                 :
                     null

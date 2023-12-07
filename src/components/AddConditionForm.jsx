@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 
-export default function AddConditionModalContent({ identifier, modalUpdateState }) {
+export default function AddConditionForm({ identifier, addCondition, disableProperties }) {
 
     const [formData, setFormData] = useState({
         description: "",
@@ -15,16 +15,22 @@ export default function AddConditionModalContent({ identifier, modalUpdateState 
             ...formData,
             [name]: value,
         });
-        modalUpdateState({
-            ...formData,
-            [name]: value,
-        });
     };
 
+    const disableConfirmButton = () => {
+        if (disableProperties != null) {
+            for (const [property, check] of Object.entries(disableProperties)) {
+                if (check(formData[property])) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     return (
-        <div id="modal-jdc" className="modal-jdc-container">
-            <h2 className="modal-title">{`Add ${identifier.charAt(0).toUpperCase() + identifier.slice(1)}`}-condition</h2>
-            <div className="external-form-container-modal">
+        <div id="add-condition-jdc" className="add-condition-jdc-container">
+            <div className="external-form-container">
                 <form className="form-container">
                     <div className="add-condition-input-container">
                         <label
@@ -89,6 +95,20 @@ export default function AddConditionModalContent({ identifier, modalUpdateState 
                         </div>
                     }
                 </form>
+                <button
+                    disabled={ disableConfirmButton() }
+                    className="add-condition-button"
+                    style={ disableConfirmButton() ? { opacity: 0.5, cursor: "not-allowed" } : {} }
+                    onClick={ () => {
+                        addCondition(formData);
+                        setFormData({
+                            description: "",
+                            condition: "",
+                            oracle: "",
+                            exception: ""
+                        })
+                    } }
+                >Add</button>
             </div>
         </div>
     )

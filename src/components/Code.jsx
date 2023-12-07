@@ -4,7 +4,7 @@ import {FiMinusSquare, FiPlusSquare} from "react-icons/fi";
 
 export default function Code({ label, identifier, code, language }) {
 
-    const [expand, setExpand] = useState(true);
+    const [expand, setExpand] = useState(false);
 
     useEffect(() => {
         Prism.highlightAll();

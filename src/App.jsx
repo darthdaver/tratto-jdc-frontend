@@ -55,6 +55,7 @@ function App() {
             }
         }
     });
+    const [currentUser, setCurrentUser] = useState(null);
     const [currentRepository, setCurrentRepository] = useState(null);
     const [currentRepositoryClass, setCurrentRepositoryClass] = useState(null);
     const [currentJDoctorCondition, setCurrentJDoctorCondition] = useState( null);
@@ -67,43 +68,57 @@ function App() {
 
     useEffect(  () => {
         console.log("useEffect []");
-        if (!isAuthOpen) {
-            axios
-                .get(api.getAllrepositoriesUrl())
-                .then(async (response) => {
-                    if (response.data.length > 0) {
-                        const repository = response.data[0];
-                        setCurrentRepository({
-                            repository: repository,
-                            repositoryClasses: {}
-                        });
-                        const repositoriesCacheDict = response.data.reduce((acc, r) => {
-                            return {
-                                ...acc,
-                                [`${r._id}`]: {
-                                    repository: r,
-                                    repositoryClasses: {},
-                                }
-                            }
-                        }, {});
-                        setCache((prevState) => {
-                            return {
-                                ...prevState,
-                                repositories: repositoriesCacheDict
-                            }
-                        });
-                    } else {
-                        setCurrentRepository(null);
+
+        async function getRepositories() {
+            let repositories = [];
+            if (import.meta.env.VITE_PERMIT == "student") {
+                for (const { _id } of currentUser.repositories) {
+                    try {
+                        const response = await axios.get(api.getRepositoryUrl(_id));
+                        repositories.push(response.data);
+                    } catch (err) {
+                        console.log(err);
                     }
-                })
-                .catch((error) => {
-                    console.log(error);
+                }
+            } else {
+                try {
+                    const response = await axios.get(api.getAllrepositoriesUrl());
+                    repositories = response.data;
+                } catch (err) {
+                    console.log(err);
+                }
+            }
+            return repositories;
+        };
+
+        if (!isAuthOpen) {
+            getRepositories().then((repositories) => {
+                if (repositories.length > 0) {
+                    const repositoriesCacheDict = repositories.reduce((acc, r) => {
+                        return {
+                            ...acc,
+                            [`${r._id}`]: {
+                                repository: r,
+                                repositoryClasses: {},
+                            }
+                        }
+                    }, {});
+                    setCache((prevState) => {
+                        return {
+                            ...prevState,
+                            repositories: repositoriesCacheDict
+                        }
+                    });
+                    setCurrentRepository(repositoriesCacheDict[Object.keys(repositoriesCacheDict)[0]]);
+                } else {
                     setCurrentRepository(null);
-                })
+                }
+            });
         }
-    }, [], isAuthOpen);
+    }, [isAuthOpen]);
 
     useEffect( () => {
+        console.log("useEffect [currentRepository]");
         if (currentRepository !== null && currentRepository.repository.classes.length > 0) {
             const idRepository = currentRepository.repository._id;
             const idRepositoryClass = currentRepository.repository.classes[0]._id;
@@ -489,16 +504,16 @@ function App() {
         });
     }
 
-    const submitAuth = (event) => {
+    const signIn = (event) => {
         event.preventDefault();
         axios
-            .post(api.loginUrl(), {
+            .post(api.signInUrl(), {
                 email: formAuth.email,
                 password: formAuth.password
             })
             .then((response) => {
-                if (response.data)
                 setIsAuthOpen(false);
+                setCurrentUser(response.data);
             })
             .catch((error) => {
                 console.log(error);
@@ -509,122 +524,129 @@ function App() {
         <>
             {
                 (import.meta.env.VITE_PERMIT == "student" && isAuthOpen) ?
-                <div id="student-login">
-                    <form className="form-container">
-                        <div className="add-condition-input-container">
-                            <label
-                                htmlFor="email"
-                                className="add-condition-label"
-                            >Email:</label>
-                            <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                value={formAuth.email}
-                                onChange={handleInputChange}
-                                className="add-condition-input"
-                            />
+                    <div id="student-login">
+                        <form className="form-container-student">
+                            <div className="signin-input-container">
+                                <label
+                                    htmlFor="email"
+                                    className="signin-label"
+                                >Email:</label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    value={formAuth.email}
+                                    onChange={handleInputChange}
+                                    className="signin-input"
+                                />
+                            </div>
+                            <div className="signin-input-container">
+                                <label
+                                    htmlFor="password"
+                                    className="signin-label"
+                                >Password:</label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    value={formAuth.password}
+                                    onChange={handleInputChange}
+                                    className="signin-input"
+                                />
+                            </div>
+                        </form>
+                        <button className="submit-button signin-button" onClick={signIn}>Submit</button>
+                    </div>
+                :
+                    <>
+                        <h1 id="main-title">Data Augmentation</h1>
+                        <div id="page">
+                            <div id="menu">
+                                <List
+                                    label="Repositories"
+                                    identifier="repository"
+                                    selected={ currentRepository ? currentRepository.repository._id : null }
+                                    elements={ Object.values(cache.repositories).map(r => {
+                                        return {
+                                            _id: r.repository._id,
+                                            name: r.repository.projectName
+                                        }}
+                                    ) }
+                                    onClickCallback={changeCurrentRepository}
+                                    deleteButtonCallback={deleteRepository}
+                                />
+                                <List
+                                    label="Classes"
+                                    identifier="repository-classes"
+                                    selected={ currentRepositoryClass ? currentRepositoryClass.repositoryClass._id : null }
+                                    elements={ currentRepository !== null && currentRepository.repository.classes.map(c => {
+                                        const _id = c._id;
+                                        let name = c.name;
+                                        name = name.substring(name.lastIndexOf(".") + 1);
+                                        return {
+                                            _id: _id,
+                                            name: name
+                                        }
+                                    })}
+                                    onClickCallback={changeCurrentRepositoryClass}
+                                    deleteButtonCallback={deleteRepositoryClass}
+                                />
+                                <List
+                                    label="JDoctor Conditions"
+                                    identifier="jdc"
+                                    selected={ currentJDoctorCondition ? currentJDoctorCondition._id : null }
+                                    elements={ currentRepositoryClass && Object.values(currentRepositoryClass.repositoryClass.jDoctorConditions).map(j => {
+                                        const _id = j._id;
+                                        let name = j.name;
+                                        return {
+                                            _id: _id,
+                                            name: name
+                                        }
+                                    }) || []}
+                                    onClickCallback={ changeCurrentJDoctorCondition }
+                                    deleteButtonCallback={ deleteJDoctorCondition }
+                                />
+                            </div>
+                            <div id="main" className={ currentJDoctorCondition != null ? "main" : "main-not-found" }>
+                                <Main
+                                    repository={currentRepository}
+                                    repositoryClass={currentRepositoryClass}
+                                    jdc={currentJDoctorCondition}
+                                    updateCurrentJDC={updateCurrentJDoctorCondition}
+                                />
+                            </div>
+                            <div className="add-button-set">
+                                {
+                                    import.meta.env.PERMIT == "student" ?
+                                        <CircleMenuButton
+                                            label="Upload JDoctor Conditions"
+                                            onClick={() => { setIsModalOpen(true); }}
+                                        ><FaFileUpload color="white" size={30} /></CircleMenuButton>
+                                    :
+                                        <CircleMenuButton
+                                            label="Export JDoctor Conditions"
+                                            onClick={() => { exportDB(); }}
+                                        ><MdCloudDownload color="white" size={30} /></CircleMenuButton>
+                                }
+                            </div>
                         </div>
-                        <div className="add-condition-input-container">
-                            <label
-                                htmlFor="password"
-                                className="add-condition-label"
-                            >Password:</label>
-                            <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                value={formAuth.password}
-                                onChange={handleInputChange}
-                                className="add-condition-input"
-                            />
-                        </div>
-                    </form>
-                    <button className="submit-button" onClick={submitAuth}>Submit</button>
-                </div> : null
-            }
-            <h1 id="main-title">Data Augmentation</h1>
-            <div id="page">
-                <div id="menu">
-                    <List
-                        label="Repositories"
-                        identifier="repository"
-                        selected={ currentRepository ? currentRepository.repository._id : null }
-                        elements={ Object.values(cache.repositories).map(r => {
-                            return {
-                                _id: r.repository._id,
-                                name: r.repository.projectName
+                        <Modal
+                            open={isModalOpen}
+                            onClose={()=>{ setIsModalOpen(false); }}
+                            onConfirm={(modalObj) => { uploadJDoctorConditions(modalObj); }}
+                            disableProperties={{ repository: (property) => { return property == null; }}}
+                            modalState={{
+                                repository: null,
+                                repositoryClasses: []
                             }}
-                        ) }
-                        onClickCallback={changeCurrentRepository}
-                        deleteButtonCallback={deleteRepository}
-                    />
-                    <List
-                        label="Classes"
-                        identifier="repository-classes"
-                        selected={ currentRepositoryClass ? currentRepositoryClass.repositoryClass._id : null }
-                        elements={ currentRepository !== null && currentRepository.repository.classes.map(c => {
-                            const _id = c._id;
-                            let name = c.name;
-                            name = name.substring(name.lastIndexOf(".") + 1);
-                            return {
-                                _id: _id,
-                                name: name
-                            }
-                        })}
-                        onClickCallback={changeCurrentRepositoryClass}
-                        deleteButtonCallback={deleteRepositoryClass}
-                    />
-                    <List
-                        label="JDoctor Conditions"
-                        identifier="jdc"
-                        selected={ currentJDoctorCondition ? currentJDoctorCondition._id : null }
-                        elements={ currentRepositoryClass && Object.values(currentRepositoryClass.repositoryClass.jDoctorConditions).map(j => {
-                            const _id = j._id;
-                            let name = j.name;
-                            return {
-                                _id: _id,
-                                name: name
-                            }
-                        }) || []}
-                        onClickCallback={ changeCurrentJDoctorCondition }
-                        deleteButtonCallback={ deleteJDoctorCondition }
-                    />
-                </div>
-                <div id="main" className={ currentJDoctorCondition != null ? "main" : "main-not-found" }>
-                    <Main
-                        repository={currentRepository}
-                        repositoryClass={currentRepositoryClass}
-                        jdc={currentJDoctorCondition}
-                        updateCurrentJDC={updateCurrentJDoctorCondition}
-                    />
-                </div>
-                <div className="add-button-set">
-                    <CircleMenuButton
-                        label="Upload JDoctor Conditions"
-                        onClick={() => { setIsModalOpen(true); }}
-                    ><FaFileUpload color="white" size={30} /></CircleMenuButton>
-                    <CircleMenuButton
-                        label="Export JDoctor Conditions"
-                        onClick={() => { exportDB(); }}
-                    ><MdCloudDownload color="white" size={30} /></CircleMenuButton>
-                </div>
-            </div>
-            <Modal
-                open={isModalOpen}
-                onClose={()=>{ setIsModalOpen(false); }}
-                onConfirm={(modalObj) => { uploadJDoctorConditions(modalObj); }}
-                disableProperties={{ repository: (property) => { return property == null; }}}
-                modalState={{
-                    repository: null,
-                    repositoryClasses: []
-                }}
-                confirmButtonLabel={"Upload"}
-            >
-                <UploadJDCModalContent
-                    repositories={Object.values(cache.repositories).map(r => r.repository)}
-                />
-            </Modal>
+                            confirmButtonLabel={"Upload"}
+                        >
+                            <UploadJDCModalContent
+                                repositories={Object.values(cache.repositories).map(r => r.repository)}
+                            />
+                        </Modal>
+                    </>
+            }
         </>
     )
 }
